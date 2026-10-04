@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chapter 15 - Death Of The Tourist Spot Guy</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js Library CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Inter:wght@300;400;600;800&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            user-select: none;
+            overflow: hidden;
+            background-color: #08090a;
+            color: #f3f4f6;
+        }
+
+        .font-cinzel {
+            font-family: 'Cinzel', serif;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #059669;
+            border-radius: 4px;
+        }
+
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+        }
+
+        .glass-button {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(6, 95, 70, 0.4));
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            transition: all 0.2s ease;
+        }
+        .glass-button:hover {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.4), rgba(6, 95, 70, 0.6));
+            border-color: rgba(52, 211, 153, 0.8);
+            transform: translateY(-1px);
+        }
+
+        /* CRT / Camera Lens Flash FX */
+        .camera-flash {
+            animation: flashAnim 0.3s ease-out forwards;
+        }
+        @keyframes flashAnim {
+            0% { opacity: 0.9; background-color: #ffffff; }
+            100% { opacity: 0; background-color: transparent; }
+        }
+
+        /* Candy Illusion Overlay Effect */
+        .candy-mode-glow {
+            box-shadow: inset 0 0 50px rgba(236, 72, 153, 0.3);
+            border: 2px solid rgba(244, 114, 182, 0.5);
+        }
+    </style>
+</head>
+<body class="w-screen h-screen relative flex flex-col justify-between overflow-hidden">
+
+    <div id="canvas-container" class="absolute inset-0 z-0"></div>
+
+    <!-- FLASH EFFECT OVERLAY -->
+    <div id="flash-overlay" class="absolute inset-0 pointer-events-none z-40"></div>
+
+    <!-- HUD OVERLAY TOP BAR -->
+    <div class="relative z-10 p-4 flex justify-between items-start pointer-events-none">
+        <!-- Player Status Bars & Class -->
+        <div class="glass-panel p-4 rounded-xl w-80 pointer-events-auto space-y-2">
+            <div class="flex justify-between items-center mb-1">
+                <div>
+                    <h2 id="player-name" class="font-cinzel text-lg font-bold text-emerald-400">Theo</h2>
+                    <p id="player-class-title" class="text-xs text-emerald-200/70 font-semibold">Tourism Vlogger (Lvl <span id="player-lvl">1</span>)</p>
+                </div>
+                <div class="text-right">
+                    <span id="player-exp" class="text-xs text-amber-400 font-bold">EXP: 0/100</span>
+                </div>
+            </div>
+
+            <!-- Health Bar -->
+            <div class="space-y-1">
+                <div class="flex justify-between text-xs font-semibold">
+                    <span class="text-red-400"><i class="fa-solid fa-heart mr-1"></i> Health</span>
+                    <span id="hp-text">100 / 100</span>
+                </div>
+                <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden p-0.5 border border-red-900/50">
+                    <div id="hp-bar" class="bg-gradient-to-r from-red-600 to-rose-400 h-full rounded-full transition-all duration-300" style="width: 100%"></div>
+                </div>
+            </div>
+
+            <!-- Illusion/Sanity Meter -->
+            <div class="space-y-1">
+                <div class="flex justify-between text-xs font-semibold">
+                    <span class="text-pink-400"><i class="fa-solid fa-eye mr-1"></i> Illusion Meter</span>
+                    <span id="illusion-text">50 / 100</span>
+                </div>
+                <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden p-0.5 border border-pink-900/50">
+                    <div id="illusion-bar" class="bg-gradient-to-r from-pink-500 to-purple-500 h-full rounded-full transition-all duration-300" style="width: 50%"></div>
+                </div>
+            </div>
+
+            <!-- Camera Battery -->
+            <div class="space-y-1">
+                <div class="flex justify-between text-xs font-semibold">
+                    <span class="text-cyan-400"><i class="fa-solid fa-battery-three-quarters mr-1"></i> Camera Power</span>
+                    <span id="battery-text">100 / 100</span>
+                </div>
+                <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden p-0.5 border border-cyan-900/50">
+                    <div id="battery-bar" class="bg-gradient-to-r from-cyan-500 to-blue-400 h-full rounded-full transition-all duration-300" style="width: 100%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quest Tracker Box -->
+        <div class="glass-panel p-4 rounded-xl w-72 pointer-events-auto border-l-4 border-amber-500">
+            <h3 class="font-cinzel font-bold text-amber-400 text-sm flex items-center gap-2">
+                <i class="fa-solid fa-scroll"></i> Active Quest
+            </h3>
+            <div class="mt-2 text-xs space-y-1">
+                <p id="quest-title" class="font-bold text-slate-100">Talk to Corata at the Gate</p>
+                <p id="quest-desc" class="text-slate-300">Corata has important instructions before proceeding to Juana Waterfalls.</p>
+                <div class="pt-2 flex justify-between text-emerald-400 font-semibold">
+                    <span>Progress:</span>
+                    <span id="quest-progress">0 / 1</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mini-Map Overlay -->
+        <div class="glass-panel p-2 rounded-xl w-36 h-36 relative flex items-center justify-center pointer-events-auto overflow-hidden">
+            <div class="absolute inset-0 opacity-40 bg-[radial-gradient(#10b981_1px,transparent_1px)] [background-size:8px_8px]"></div>
+            <!-- Mini-map center marker -->
+            <div class="w-3 h-3 bg-emerald-400 rounded-full border-2 border-white z-10 shadow-lg shadow-emerald-500"></div>
+            <!-- Dynamic Mini-map Canvas -->
+            <canvas id="minimap-canvas" class="absolute inset-0 w-full h-full"></canvas>
+            <span class="absolute bottom-1 right-2 text-[10px] text-emerald-400 font-mono">JUANA FALLS</span>
+        </div>
+    </div>
+
+    <!-- CENTER NOTIFICATION / MESSAGES -->
+    <div id="center-message-container" class="absolute inset-x-0 top-24 flex justify-center pointer-events-none z-20">
+        <div id="center-message" class="hidden glass-panel px-6 py-3 rounded-full text-center font-bold text-amber-300 border border-amber-500/50 shadow-2xl transition-all duration-300">
+            Message details
+        </div>
+    </div>
+
+    <!-- ACTION / INTERACTION PROMPT -->
+    <div id="interaction-prompt" class="hidden absolute bottom-32 left-1/2 -translate-x-1/2 glass-panel px-6 py-3 rounded-xl border border-emerald-400 text-center z-30 pointer-events-none">
+        <span class="text-emerald-400 font-bold bg-emerald-950 px-2 py-1 rounded mr-2">E</span>
+        <span id="interaction-text" class="text-sm font-semibold text-slate-200">Interact with Corata</span>
+    </div>
+
+    <!-- BOTTOM ACTION BAR & CONTROLS -->
+    <div class="relative z-10 p-4 flex justify-between items-end pointer-events-none">
+        <!-- Quick Nav Shortcuts -->
+        <div class="flex gap-2 pointer-events-auto">
+            <button onclick="toggleModal('inventory-modal')" class="glass-button p-3 rounded-xl text-slate-200 flex flex-col items-center w-16">
+                <i class="fa-solid fa-box-open text-lg text-emerald-400"></i>
+                <span class="text-[10px] mt-1 font-bold">Bag (I)</span>
+            </button>
+            <button onclick="toggleModal('skills-modal')" class="glass-button p-3 rounded-xl text-slate-200 flex flex-col items-center w-16">
+                <i class="fa-solid fa-sitemap text-lg text-emerald-400"></i>
+                <span class="text-[10px] mt-1 font-bold">Skills (K)</span>
+            </button>
+            <button onclick="toggleModal('story-modal')" class="glass-button p-3 rounded-xl text-slate-200 flex flex-col items-center w-16">
+                <i class="fa-solid fa-book-open text-lg text-amber-400"></i>
+                <span class="text-[10px] mt-1 font-bold">Lore (L)</span>
+            </button>
+        </div>
+
+        <!-- Ability Hotbar -->
+        <div class="glass-panel p-2 rounded-2xl flex gap-3 pointer-events-auto border border-emerald-500/30">
+            <button id="skill-btn-1" onclick="useSkill(1)" class="relative glass-button w-14 h-14 rounded-xl flex flex-col items-center justify-center">
+                <i class="fa-solid fa-eye text-pink-400 text-lg"></i>
+                <span class="text-[9px] font-bold text-slate-300 mt-1">Illusion</span>
+                <span class="absolute top-1 left-1.5 text-[10px] font-bold text-emerald-400">1</span>
+            </button>
+            <button id="skill-btn-2" onclick="useSkill(2)" class="relative glass-button w-14 h-14 rounded-xl flex flex-col items-center justify-center">
+                <i class="fa-solid fa-camera text-cyan-400 text-lg"></i>
+                <span class="text-[9px] font-bold text-slate-300 mt-1">Flash Stun</span>
+                <span class="absolute top-1 left-1.5 text-[10px] font-bold text-emerald-400">2</span>
+            </button>
+            <button id="skill-btn-3" onclick="useSkill(3)" class="relative glass-button w-14 h-14 rounded-xl flex flex-col items-center justify-center">
+                <i class="fa-solid fa-shield-halved text-amber-400 text-lg"></i>
+                <span class="text-[9px] font-bold text-slate-300 mt-1">Guide Shield</span>
+                <span class="absolute top-1 left-1.5 text-[10px] font-bold text-emerald-400">3</span>
+            </button>
+            <button id="skill-btn-4" onclick="useSkill(4)" class="relative glass-button w-14 h-14 rounded-xl flex flex-col items-center justify-center">
+                <i class="fa-solid fa-bolt text-emerald-400 text-lg"></i>
+                <span class="text-[9px] font-bold text-slate-300 mt-1">Agility</span>
+                <span class="absolute top-1 left-1.5 text-[10px] font-bold text-emerald-400">4</span>
+            </button>
+        </div>
+
+        <!-- Camera Angle Toggle & Controls Guide -->
+        <div class="flex gap-2 pointer-events-auto">
+            <button onclick="toggleCameraView()" class="glass-button px-4 py-3 rounded-xl text-xs font-bold flex items-center gap-2">
+                <i class="fa-solid fa-video text-emerald-400"></i>
+                <span id="camera-view-text">Cam: 3rd Person</span>
+            </button>
+        </div>
+    </div>
+
+    <div id="dialogue-modal" class="hidden fixed inset-x-0 bottom-6 mx-auto max-w-3xl glass-panel p-6 rounded-2xl z-50 border-2 border-emerald-500 shadow-2xl">
+        <div class="flex items-start gap-4">
+            <div class="w-16 h-16 rounded-xl bg-emerald-950 border border-emerald-400 flex items-center justify-center flex-shrink-0">
+                <i id="dialogue-avatar" class="fa-solid fa-user-shield text-3xl text-emerald-400"></i>
+            </div>
+            <div class="flex-1 space-y-2">
+                <div class="flex justify-between items-center">
+                    <h3 id="dialogue-speaker" class="font-cinzel text-lg font-bold text-amber-400">Corata (Tour Boss)</h3>
+                    <span class="text-xs text-slate-400">[ Press SPACE to continue ]</span>
+                </div>
+                <p id="dialogue-text" class="text-sm text-slate-200 leading-relaxed font-sans">
+                    "Theo, here is now our next journey. Do you want to go with me?"
+                </p>
+                <div id="dialogue-choices" class="pt-2 flex gap-3 hidden">
+                    <button onclick="selectDialogueChoice(1)" class="glass-button px-4 py-2 rounded-lg text-xs font-bold text-emerald-300">Yes, I'm interested! Let's game!</button>
+                    <button onclick="selectDialogueChoice(2)" class="glass-button px-4 py-2 rounded-lg text-xs font-bold text-pink-400">I see floating candies ahead!</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="story-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="glass-panel max-w-2xl w-full p-6 rounded-2xl max-h-[85vh] overflow-y-auto space-y-4 border border-amber-500/40">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+                <h2 class="font-cinzel text-xl font-bold text-amber-400">Chapter 15: Bedtime Stories</h2>
+                <button onclick="toggleModal('story-modal')" class="text-slate-400 hover:text-white text-xl font-bold">&times;</button>
+            </div>
+            <div class="space-y-3 text-xs sm:text-sm text-slate-300 leading-relaxed font-sans">
+                <div class="text-center font-bold text-amber-300 text-base">
+                    <p>February 15, 2020</p>
+                    <p class="font-cinzel text-lg text-emerald-400">Death Of The Tourist Spot Guy</p>
+                    <p class="text-xs text-slate-400 italic">From the creations of Death Tourism And "The Rages Band"</p>
+                </div>
+                <hr class="border-slate-800">
+                <p>Once upon a time there is an employee who has a hobby of taking pictures. Such as photogenic views, video recording artist. And streamer of blogs while travelling. His name is <strong>Theo</strong> the one with his own friend <strong>Corata</strong>. And Corata is the boss that teaches on how to survive in each steps of walking due to travelling. And also especially to the cliffs around.</p>
+                <p>Corata said, <em>"Theo here is now our next journey. Do you want to go with me?"</em> Theo said, <em>"Yes I’m interesting for it, let’s game."</em> So here they are. Most special course Theo have is Tourism. Where we can only capture pictures. And also recording videos that makes him a highest salary every month.</p>
+                <p>And when Theo and Corata goes already in the <strong>Juana Waterfalls</strong>, with sharp rocks and poisoning waters, Corata don’t know Theo visualized sharp rocks looking like candies for safety under a dangerous illusion.</p>
+                <div class="p-3 bg-red-950/40 border-l-4 border-red-500 rounded text-red-200 italic my-2">
+                    "Moral Lesson: If you think this is a serious matter, don't go even this is not the joke. And this is the real mission. One fake step is enough to fail the hazard and unexpected happenings. Then believe person who says the truth in illusion to save your life."
+                </div>
+            </div>
+            <div class="text-right pt-2">
+                <button onclick="toggleModal('story-modal')" class="glass-button px-6 py-2 rounded-xl text-xs font-bold text-emerald-300">Close Log</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="inventory-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="glass-panel max-w-3xl w-full p-6 rounded-2xl space-y-4 border border-emerald-500/40">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+                <h2 class="font-cinzel text-xl font-bold text-emerald-400"><i class="fa-solid fa-briefcase mr-2"></i> Inventory & Equipment</h2>
+                <button onclick="toggleModal('inventory-modal')" class="text-slate-400 hover:text-white text-xl font-bold">&times;</button>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Equipment Slots -->
+                <div class="space-y-3 bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+                    <h3 class="font-cinzel font-bold text-amber-400 text-sm">Equipment</h3>
+                    <div class="space-y-2">
+                        <div class="flex items-center gap-3 p-2 bg-slate-800/80 rounded-lg border border-slate-700">
+                            <i class="fa-solid fa-camera text-cyan-400 text-xl w-8 text-center"></i>
+                            <div class="text-xs">
+                                <p class="font-bold text-slate-200">HD Vlog Camera</p>
+                                <p class="text-[10px] text-slate-400">+15 Photography Power</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3 p-2 bg-slate-800/80 rounded-lg border border-slate-700">
+                            <i class="fa-solid fa-glasses text-pink-400 text-xl w-8 text-center"></i>
+                            <div class="text-xs">
+                                <p class="font-bold text-slate-200">Antidote Lens Goggles</p>
+                                <p class="text-[10px] text-slate-400">+20% Illusion Resistance</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3 p-2 bg-slate-800/80 rounded-lg border border-slate-700">
+                            <i class="fa-solid fa-shoe-prints text-amber-400 text-xl w-8 text-center"></i>
+                            <div class="text-xs">
+                                <p class="font-bold text-slate-200">Guide Boots</p>
+                                <p class="text-[10px] text-slate-400">+10 Movement Speed</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bag Grid -->
+                <div class="md:col-span-2 space-y-3">
+                    <h3 class="font-cinzel font-bold text-amber-400 text-sm">Backpack Items</h3>
+                    <div id="inventory-grid" class="grid grid-cols-4 gap-3">
+                        <!-- Items populated via JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="skills-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="glass-panel max-w-2xl w-full p-6 rounded-2xl space-y-4 border border-emerald-500/40">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+                <h2 class="font-cinzel text-xl font-bold text-emerald-400"><i class="fa-solid fa-sitemap mr-2"></i> Progression & Skill Tree</h2>
+                <button onclick="toggleModal('skills-modal')" class="text-slate-400 hover:text-white text-xl font-bold">&times;</button>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div class="p-4 bg-slate-900/60 rounded-xl border border-slate-800 space-y-2">
+                    <h4 class="font-bold text-pink-400 text-sm">1. Illusion Vision Toggle</h4>
+                    <p class="text-xs text-slate-300">Switch vision mode to see through dangerous floating candy traps at Juana Waterfalls.</p>
+                    <span class="inline-block px-2 py-0.5 bg-emerald-900/60 text-emerald-300 text-[10px] font-bold rounded">UNLOCKED</span>
+                </div>
+                <div class="p-4 bg-slate-900/60 rounded-xl border border-slate-800 space-y-2">
+                    <h4 class="font-bold text-cyan-400 text-sm">2. Flash Photography Stun</h4>
+                    <p class="text-xs text-slate-300">Emit a powerful high-lumen flash to blind and stun nearby toxic illusion monsters.</p>
+                    <span class="inline-block px-2 py-0.5 bg-emerald-900/60 text-emerald-300 text-[10px] font-bold rounded">UNLOCKED</span>
+                </div>
+                <div class="p-4 bg-slate-900/60 rounded-xl border border-slate-800 space-y-2">
+                    <h4 class="font-bold text-amber-400 text-sm">3. Corata's Warning Shield</h4>
+                    <p class="text-xs text-slate-300">Summon a protective barrier that reduces damage from sharp cliff rocks and poison.</p>
+                    <span class="inline-block px-2 py-0.5 bg-amber-900/60 text-amber-300 text-[10px] font-bold rounded">LEVEL 2 REQUIRED</span>
+                </div>
+                <div class="p-4 bg-slate-900/60 rounded-xl border border-slate-800 space-y-2">
+                    <h4 class="font-bold text-emerald-400 text-sm">4. Cliff Agility</h4>
+                    <p class="text-xs text-slate-300">Gain a temporary burst of speed to leap across hazardous waterfalls and cliff edges.</p>
+                    <span class="inline-block px-2 py-0.5 bg-amber-900/60 text-amber-300 text-[10px] font-bold rounded">LEVEL 3 REQUIRED</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* GAME STATE MANAGEMENT */
+        const gameState = {
+            player: {
+                hp: 100,
+                maxHp: 100,
+                illusion: 50,
+                maxIllusion: 100,
+                battery: 100,
+                maxBattery: 100,
+                level: 1,
+                exp: 0,
+                maxExp: 100,
+                className: "Tourism Vlogger",
+                speed: 0.15,
+                candiesCollected: 0,
+                candyMode: false,
+                isShielded: false
+            },
+            quest: {
+                id: 1,
+                title: "Juana Waterfalls Warning",
+                desc: "Talk to Corata near the entrance to learn about cliff safety.",
+                progress: 0,
+                total: 1,
+                completed: false
+            },
+            dialogueIndex: 0,
+            currentNpc: null,
+            isThirdPerson: true,
+            keys: {}
+        };
+
+        const inventoryItems = [
+            { id: 'antidote', name: 'Poison Antidote', icon: 'fa-bottle-droplet', color: 'text-emerald-400', count: 3, desc: 'Restores 40 HP' },
+            { id: 'battery', name: 'Camera Battery Pack', icon: 'fa-battery-full', color: 'text-cyan-400', count: 2, desc: 'Restores Camera Power' },
+            { id: 'candy_sample', name: 'Illusion Candy', icon: 'fa-candy-cane', color: 'text-pink-400', count: 1, desc: 'Dangerous trap item' },
+            { id: 'photo_log', name: 'Juana Falls Photo', icon: 'fa-image', color: 'text-amber-400', count: 1, desc: 'High-value tourist blog shot' }
+        ];
+
+        let scene, camera, renderer;
+        let playerMesh, corataMesh;
+        let waterfallParticles = [];
+        let enemies = [];
+        let hazardZones = [];
+        let candyObjects = [];
+        let rockSpikes = [];
+
+        function init3DWorld() {
+            const container = document.getElementById('canvas-container');
+            
+            // Scene Setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0f1d);
+            scene.fog = new THREE.FogExp2(0x0a0f1d, 0.025);
+
+            // Camera Setup
+            camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+            // Renderer Setup
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x38bdf8, 0.4);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xfef08a, 0.8);
+            dirLight.position.set(20, 40, 20);
+            dirLight.castShadow = true;
+            scene.add(dirLight);
+
+            // Glowing Toxic Water Light
+            const waterLight = new THREE.PointLight(0x10b981, 1.5, 30);
+            waterLight.position.set(0, 2, -20);
+            scene.add(waterLight);
+
+            // BUILD TERRAIN: Juana Waterfalls Zone
+            buildTerrain();
+
+            // BUILD CHARACTERS
+            buildPlayer();
+            buildCorataNPC();
+
+            // BUILD HAZARDS & ILLUSIONS
+            buildWaterfallsAndToxicPool();
+            buildSharpRockSpikes();
+            buildCandyIllusions();
+            spawnEnemies();
+
+            // Event Listeners
+            window.addEventListener('resize', onWindowResize);
+            setupInputListeners();
+
+            // Render Loop
+            animate();
+        }
+
+        function buildTerrain() {
+            // Main Grass/Cliff Ground
+            const groundGeo = new THREE.PlaneGeometry(120, 120, 32, 32);
+            const groundMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.8 });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // High Cliffs Surrounding Juana Waterfalls
+            const cliffMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.9 });
+            const cliffGeo = new THREE.BoxGeometry(20, 30, 20);
+
+            for (let i = 0; i < 8; i++) {
+                const cliff = new THREE.Mesh(cliffGeo, cliffMat);
+                cliff.position.set(-40 + i * 12, 15, -35);
+                cliff.castShadow = true;
+                scene.add(cliff);
+            }
+        }
+
+        function buildWaterfallsAndToxicPool() {
+            // Toxic Green Water Pool
+            const waterGeo = new THREE.PlaneGeometry(50, 40);
+            const waterMat = new THREE.MeshStandardMaterial({ 
+                color: 0x059669, 
+                emissive: 0x047857,
+                roughness: 0.1, 
+                transparent: true, 
+                opacity: 0.8 
+            });
+            const water = new THREE.Mesh(waterGeo, waterMat);
+            water.rotation.x = -Math.PI / 2;
+            water.position.set(0, 0.2, -25);
+            scene.add(water);
+
+            // Roaring Waterfall Particle Mesh
+            const fallGeo = new THREE.PlaneGeometry(30, 25);
+            const fallMat = new THREE.MeshBasicMaterial({ color: 0x34d399, transparent: true, opacity: 0.6, side: THREE.DoubleSide });
+            const waterfall = new THREE.Mesh(fallGeo, fallMat);
+            waterfall.position.set(0, 12.5, -34);
+            scene.add(waterfall);
+        }
+
+        function buildSharpRockSpikes() {
+            // Sharp rock hazards around waterfall cliff base
+            const spikeGeo = new THREE.ConeGeometry(0.8, 3, 5);
+            const spikeMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.4 });
+
+            for (let i = 0; i < 15; i++) {
+                const spike = new THREE.Mesh(spikeGeo, spikeMat);
+                spike.position.set((Math.random() - 0.5) * 35, 1.5, -15 - Math.random() * 15);
+                spike.castShadow = true;
+                scene.add(spike);
+                rockSpikes.push(spike);
+            }
+        }
+
+        function buildCandyIllusions() {
+            // Floating Candy Objects (Visualized under illusion)
+            const candyGeo = new THREE.TorusGeometry(0.6, 0.2, 8, 16);
+            const candyMat = new THREE.MeshStandardMaterial({ color: 0xf472b6, emissive: 0xdb2777, roughness: 0.2 });
+
+            for (let i = 0; i < 8; i++) {
+                const candy = new THREE.Mesh(candyGeo, candyMat);
+                candy.position.set((Math.random() - 0.5) * 30, 2 + Math.random() * 2, -10 - Math.random() * 15);
+                scene.add(candy);
+                candyObjects.push(candy);
+            }
+        }
+
+        function buildPlayer() {
+            const group = new THREE.Group();
+
+            // Body
+            const bodyGeo = new THREE.CylinderGeometry(0.5, 0.5, 1.8, 8);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x0284c7 });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = 0.9;
+            group.add(body);
+
+            // Head / Camera Head
+            const headGeo = new THREE.SphereGeometry(0.4, 16, 16);
+            const headMat = new THREE.MeshStandardMaterial({ color: 0xfde047 });
+            const head = new THREE.Mesh(headGeo, headMat);
+            head.position.y = 2.0;
+            group.add(head);
+
+            // Camera Accessory
+            const camGeo = new THREE.BoxGeometry(0.4, 0.3, 0.3);
+            const camMat = new THREE.MeshStandardMaterial({ color: 0x0f172a });
+            const cam = new THREE.Mesh(camGeo, camMat);
+            cam.position.set(0, 1.9, 0.4);
+            group.add(cam);
+
+            group.position.set(0, 0, 15);
+            scene.add(group);
+            playerMesh = group;
+        }
+
+        function buildCorataNPC() {
+            const group = new THREE.Group();
+
+            const bodyGeo = new THREE.CylinderGeometry(0.6, 0.6, 2, 8);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0xd97706 }); // Guide uniform
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = 1;
+            group.add(body);
+
+            const headGeo = new THREE.SphereGeometry(0.45, 16, 16);
+            const headMat = new THREE.MeshStandardMaterial({ color: 0xfca5a5 });
+            const head = new THREE.Mesh(headGeo, headMat);
+            head.position.y = 2.2;
+            group.add(head);
+
+            group.position.set(3, 0, 10);
+            scene.add(group);
+            corataMesh = group;
+        }
+
+        function spawnEnemies() {
+            // Toxic Water Specters
+            for (let i = 0; i < 3; i++) {
+                const geo = new THREE.SphereGeometry(0.8, 8, 8);
+                const mat = new THREE.MeshStandardMaterial({ color: 0x10b981, wireframe: true });
+                const enemy = new THREE.Mesh(geo, mat);
+                enemy.position.set(-10 + i * 10, 1.5, -8);
+                scene.add(enemy);
+                enemies.push(enemy);
+            }
+        }
+
+        function setupInputListeners() {
+            document.addEventListener('keydown', (e) => {
+                gameState.keys[e.key.toLowerCase()] = true;
+
+                if (e.key === 'e' || e.key === 'E') {
+                    checkInteraction();
+                }
+                if (e.key === ' ') {
+                    advanceDialogue();
+                }
+                if (e.key.toLowerCase() === 'i') toggleModal('inventory-modal');
+                if (e.key.toLowerCase() === 'k') toggleModal('skills-modal');
+                if (e.key.toLowerCase() === 'l') toggleModal('story-modal');
+                if (['1','2','3','4'].includes(e.key)) useSkill(parseInt(e.key));
+            });
+
+            document.addEventListener('keyup', (e) => {
+                gameState.keys[e.key.toLowerCase()] = false;
+            });
+        }
+
+        function updatePlayerMovement() {
+            if (!playerMesh) return;
+
+            const moveSpeed = gameState.player.speed;
+            if (gameState.keys['w'] || gameState.keys['arrowup']) playerMesh.position.z -= moveSpeed;
+            if (gameState.keys['s'] || gameState.keys['arrowdown']) playerMesh.position.z += moveSpeed;
+            if (gameState.keys['a'] || gameState.keys['arrowleft']) playerMesh.position.x -= moveSpeed;
+            if (gameState.keys['d'] || gameState.keys['arrowright']) playerMesh.position.x += moveSpeed;
+
+            // Camera follow update
+            if (gameState.isThirdPerson) {
+                camera.position.set(playerMesh.position.x, playerMesh.position.y + 6, playerMesh.position.z + 12);
+                camera.lookAt(playerMesh.position);
+            } else {
+                camera.position.set(playerMesh.position.x, playerMesh.position.y + 2, playerMesh.position.z - 0.5);
+                camera.lookAt(playerMesh.position.x, playerMesh.position.y + 2, playerMesh.position.z - 10);
+            }
+
+            // Check Hazard Proximity (Poison Water & Sharp Rocks)
+            if (playerMesh.position.z < -5) {
+                takeDamage(0.2); // Toxic hazard damage
+                showCenterMessage("WARNING: Toxic Poison Water & Sharp Rocks ahead!");
+            }
+        }
+
+        function checkInteraction() {
+            const distToCorata = playerMesh.position.distanceTo(corataMesh.position);
+            if (distToCorata < 4) {
+                triggerCorataDialogue();
+            }
+        }
+
+        function triggerCorataDialogue() {
+            const modal = document.getElementById('dialogue-modal');
+            modal.classList.remove('hidden');
+            
+            const speaker = document.getElementById('dialogue-speaker');
+            const text = document.getElementById('dialogue-text');
+            const choices = document.getElementById('dialogue-choices');
+
+            speaker.innerText = "Corata (Tour Boss)";
+            text.innerText = "Theo here is now our next journey. Do you want to go with me? Watch out for the sharp rocks and poisonous water at Juana Waterfalls!";
+            choices.classList.remove('hidden');
+        }
+
+        function selectDialogueChoice(option) {
+            const text = document.getElementById('dialogue-text');
+            const choices = document.getElementById('dialogue-choices');
+
+            if (option === 1) {
+                text.innerText = "Theo: Yes I’m interested for it, let’s game! I will capture the most photogenic views for my vlogs.";
+                updateQuestProgress(1);
+            } else {
+                text.innerText = "Theo: Oh it’s nice to walk this deep cliff! Look at those swimming candies floating in Juana Waterfalls!";
+                gameState.player.illusion += 20;
+                updateHUD();
+            }
+            choices.classList.add('hidden');
+        }
+
+        function advanceDialogue() {
+            const modal = document.getElementById('dialogue-modal');
+            if (!modal.classList.contains('hidden')) {
+                modal.classList.add('hidden');
+            }
+        }
+
+        function useSkill(slot) {
+            const flash = document.getElementById('flash-overlay');
+
+            switch (slot) {
+                case 1: // Illusion Vision Toggle
+                    gameState.player.candyMode = !gameState.player.candyMode;
+                    candyObjects.forEach(candy => {
+                        candy.scale.setScalar(gameState.player.candyMode ? 2.0 : 1.0);
+                    });
+                    showCenterMessage(gameState.player.candyMode ? "Illusion Vision ACTIVE: Sharp rocks look like floating candies!" : "Real Vision ACTIVE: Hazardous sharp rocks revealed!");
+                    break;
+                case 2: // Flash Stun
+                    if (gameState.player.battery >= 20) {
+                        gameState.player.battery -= 20;
+                        flash.classList.add('camera-flash');
+                        setTimeout(() => flash.classList.remove('camera-flash'), 300);
+                        showCenterMessage("FLASH STUN! Nearby toxic specters blinded!");
+                        updateHUD();
+                    } else {
+                        showCenterMessage("Low Battery Power!");
+                    }
+                    break;
+                case 3: // Guide Shield
+                    gameState.player.isShielded = true;
+                    showCenterMessage("Corata's Shield Active! Hazard damage reduced.");
+                    setTimeout(() => gameState.player.isShielded = false, 5000);
+                    break;
+                case 4: // Cliff Agility
+                    gameState.player.speed = 0.35;
+                    showCenterMessage("Cliff Agility Speed Boost!");
+                    setTimeout(() => gameState.player.speed = 0.15, 3000);
+                    break;
+            }
+        }
+
+        function takeDamage(amt) {
+            if (gameState.player.isShielded) amt *= 0.3;
+            gameState.player.hp = Math.max(0, gameState.player.hp - amt);
+            updateHUD();
+
+            if (gameState.player.hp <= 0) {
+                showCenterMessage("YOU FELL TO THE JUANA WATERFALLS HAZARD! (Death of the Tourist Spot Guy)");
+            }
+        }
+
+        function updateQuestProgress(amt) {
+            gameState.quest.progress = Math.min(gameState.quest.total, gameState.quest.progress + amt);
+            document.getElementById('quest-progress').innerText = `${gameState.quest.progress} / ${gameState.quest.total}`;
+            if (gameState.quest.progress >= gameState.quest.total) {
+                document.getElementById('quest-title').innerText = "Explore Juana Waterfalls Safely";
+                document.getElementById('quest-desc').innerText = "Use your Camera and Illusion Vision to photograph the falls without stepping into poisonous cliffs.";
+            }
+        }
+
+        function updateHUD() {
+            document.getElementById('hp-bar').style.width = `${(gameState.player.hp / gameState.player.maxHp) * 100}%`;
+            document.getElementById('hp-text').innerText = `${Math.round(gameState.player.hp)} / ${gameState.player.maxHp}`;
+
+            document.getElementById('illusion-bar').style.width = `${(gameState.player.illusion / gameState.player.maxIllusion) * 100}%`;
+            document.getElementById('illusion-text').innerText = `${Math.round(gameState.player.illusion)} / ${gameState.player.maxIllusion}`;
+
+            document.getElementById('battery-bar').style.width = `${(gameState.player.battery / gameState.player.maxBattery) * 100}%`;
+            document.getElementById('battery-text').innerText = `${Math.round(gameState.player.battery)} / ${gameState.player.maxBattery}`;
+        }
+
+        function showCenterMessage(msg) {
+            const el = document.getElementById('center-message');
+            el.innerText = msg;
+            el.classList.remove('hidden');
+            clearTimeout(window.msgTimer);
+            window.msgTimer = setTimeout(() => el.classList.add('hidden'), 3000);
+        }
+
+        function toggleCameraView() {
+            gameState.isThirdPerson = !gameState.isThirdPerson;
+            document.getElementById('camera-view-text').innerText = gameState.isThirdPerson ? "Cam: 3rd Person" : "Cam: 1st Person";
+        }
+
+        function toggleModal(modalId) {
+            const modal = document.getElementById(modalId);
+            modal.classList.toggle('hidden');
+        }
+
+        function renderInventoryGrid() {
+            const grid = document.getElementById('inventory-grid');
+            grid.innerHTML = '';
+            inventoryItems.forEach(item => {
+                const cell = document.createElement('div');
+                cell.className = 'p-3 bg-slate-800/80 border border-slate-700 rounded-xl flex flex-col items-center justify-center text-center space-y-1 hover:border-emerald-400 transition cursor-pointer';
+                cell.innerHTML = `
+                    <i class="fa-solid ${item.icon} ${item.color} text-2xl"></i>
+                    <p class="text-[11px] font-bold text-slate-200">${item.name}</p>
+                    <span class="text-[9px] text-slate-400">Qty: ${item.count}</span>
+                `;
+                grid.appendChild(cell);
+            });
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            updatePlayerMovement();
+
+            // Rotate Candy Illusions
+            candyObjects.forEach(candy => {
+                candy.rotation.x += 0.01;
+                candy.rotation.y += 0.02;
+            });
+
+            // Animate Toxic Specter Enemies
+            enemies.forEach((enemy, i) => {
+                enemy.position.y = 1.5 + Math.sin(Date.now() * 0.003 + i) * 0.5;
+            });
+
+            // Check NPC Proximity Prompt
+            if (playerMesh && corataMesh) {
+                const dist = playerMesh.position.distanceTo(corataMesh.position);
+                const prompt = document.getElementById('interaction-prompt');
+                if (dist < 4) {
+                    prompt.classList.remove('hidden');
+                } else {
+                    prompt.classList.add('hidden');
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Initialize Application
+        window.onload = function() {
+            init3DWorld();
+            renderInventoryGrid();
+            updateHUD();
+        };
+    </script>
+</body>
+</html>
